@@ -79,7 +79,9 @@ int main(int argc, char* argv[]) {
 
   /* Master sends work to all the slaves */   
   if (rank == 0) {
+    cout << "Master is trying to send." << endl;
   	for(int i = 1; i< np; i++){
+  	    cout << "Master is sending to " << i << endl;
 	    int value = i-1;
 	    MPI_Send (&value, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	  	
   	}
@@ -88,6 +90,7 @@ int main(int argc, char* argv[]) {
   /* Each slave recieves its work */
   int* msgbuf = NULL;
   if(rank != 0){
+        cout << "Slave "<< rank << " is trying to recieve." << endl;
 		msgbuf = new int[1];
 		MPI_Status stat;
 		MPI_Recv (msgbuf, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat);  
