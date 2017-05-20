@@ -7,6 +7,7 @@
 #include <iostream>
 #include <cstdlib>
 #include "render.hh"
+#include <mpi.h>
 
 #define WIDTH 1000
 #define HEIGHT 1000
