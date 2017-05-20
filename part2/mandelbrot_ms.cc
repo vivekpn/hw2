@@ -80,22 +80,24 @@ int main(int argc, char* argv[]) {
   /* Master sends work to all the slaves */   
   if (rank == 0) {
   	for(int i = 1; i< np; i++){
-	    MPI_Send (i-1, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	  	
+	    int value = i-1;
+	    MPI_Send (&value, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	  	
   	}
   } 
   
   /* Each slave recieves its work */
   int* msgbuf = NULL;
   if(rank != 0){
+		msgbuf = new int[1];
 		MPI_Status stat;
 		MPI_Recv (msgbuf, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat);  
   }
   int lrow = msgbuf[0];
     
   /* Slaves perform the work */  
+  int BUFFER_LENGTH = 1 * width;
   if(rank != 0 ){	  
-	  int BUFFER_LENGTH = 1 * width;
-	  int* ldata = malloc(BUFFER_LENGTH * sizeof(int));
+	  int* ldata = (int *) malloc(BUFFER_LENGTH * sizeof(int));
 	  double x, y;
 	  y = minY + (rank-1) * it;
 	  for (int i = lrow; i < 1; ++i) {
@@ -110,13 +112,14 @@ int main(int argc, char* argv[]) {
 	  MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD);	  	
   }
 
-  int* data = NULL;
+  int** data = NULL;
   /* Master recieves slaves work*/   
   if(rank == 0) {
-    data = (int *) malloc( BUFFER_LENGTH * sizeof(int));
+    data = new int*[width];
+    // data = (int *) malloc( BUFFER_LENGTH * sizeof(int));
   	for(int i = 1; i< np; i++){
   		MPI_Status stat;
-		MPI_Recv (data[i*width + 0], width, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD, &stat);  
+		MPI_Recv (data[i], width, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD, &stat);  
   	}
   }
   
