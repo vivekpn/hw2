@@ -9,8 +9,8 @@
 #include "render.hh"
 #include <mpi.h>
 
-#define WIDTH 1000
-#define HEIGHT 1000
+//#define WIDTH 1000
+//#define HEIGHT 1
 
 using namespace std;
 
@@ -68,7 +68,7 @@ int main(int argc, char* argv[]) {
 	  }
   }
     
-  height = 128;
+  height = 1;
   width = 128;
   
   double it = (maxY - minY)/height;
@@ -101,7 +101,7 @@ int main(int argc, char* argv[]) {
   /* Slaves perform the work */  
   int BUFFER_LENGTH = 1 * width;
   if(rank != 0 ){
-          cout << "Slave " << rank << " is starting the work";	  
+          cout << "Slave " << rank << " is starting the work" << endl;	  
 	  int* ldata = (int *) malloc(BUFFER_LENGTH * sizeof(int));
 	  double x, y;
 	  y = minY + (rank-1) * it;
@@ -114,37 +114,57 @@ int main(int argc, char* argv[]) {
 		y += it;
 	  }
 	  /* Each slave sends the results to master */
-	  cout << "Slave "<< rank << " is trying to send data to master";
+	  cout << "Slave "<< rank << " is trying to send data to master" << endl;
           MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG2, MPI_COMM_WORLD);	  	
   }
 
+  cout << "Height " << height << " width " << width << " rank " << rank << endl;
   int** data = NULL;
   /* Master recieves slaves work*/   
+
   if(rank == 0) {
+    cout << 126 << endl; 
     data = new int*[height];
+    cout << 128 << endl; 
+
     // data = (int *) malloc( BUFFER_LENGTH * sizeof(int));
   	for(int i = 1; i< np; i++){
-                cout << "Master is trying to recieve data from slave " << i;
+  	    cout << 132 << endl; 
+		data[i-1] = new int[width];
+        cout << "Master is trying to recieve data from slave " << i << endl;
   		MPI_Status stat;
-		data[i] = new int[width];
-		MPI_Recv (data[i], width, MPI_INT, i, MSG_TAG2, MPI_COMM_WORLD, &stat);  
+		MPI_Recv (data[i-1], width, MPI_INT, i, MSG_TAG2, MPI_COMM_WORLD, &stat);  
+		cout << "Master recieved data from slave " << i << endl;
+		cout << "Data from slave " << i << " is " << data[i-1] << endl;
   	}
   }
   
+  cout << "Rank " << rank << " before barrier." << endl;
   /* Master gathers the results and sends more work for the slave */
   MPI_Barrier (MPI_COMM_WORLD); /* Synchronize the nodes */
+  cout << "Rank " << rank << " after barrier." << endl;
  
   /* Once the work is completed, master renders the image and outputs the result */  
   if(rank == 0) {
+      cout << 149 << endl;
 	  gil::rgb8_image_t img(height, width);
+	  cout << 151 << endl;
+
 	  auto img_view = gil::view(img);
+	  cout << 154 << endl;
+
 	  for (int i = 0; i < height; ++i) {
+	  	cout << 157 << endl;
 		for (int j = 0; j < width; ++j) {
+	      cout << 159 << endl;
 		  img_view(j, i) = render(data[j][i]);
+		  cout << 161 << endl;
 		}
 	  }
+	  cout << 164 << endl;
 	  gil::png_write_view("mandelbrot.png", const_view(img));  
   }
-  
+  cout << "Rank " << rank << " before finalize." << endl;  
   MPI_Finalize (); 
+  cout << "Rank " << rank << " after finalize." << endl;  
 }
