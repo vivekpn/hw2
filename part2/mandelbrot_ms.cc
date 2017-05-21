@@ -9,9 +9,6 @@
 #include "render.hh"
 #include <mpi.h>
 
-//#define WIDTH 1000
-//#define HEIGHT 1
-
 using namespace std;
 
 int mandelbrot(double x, double y) {
@@ -68,8 +65,8 @@ int main(int argc, char* argv[]) {
 	  }
   }
     
-  height = 1;
-  width = 128;
+  height = 15;
+  width = 15;
   
   double it = (maxY - minY)/height;
   double jt = (maxX - minX)/width;
@@ -115,7 +112,7 @@ int main(int argc, char* argv[]) {
 	  }
 	  /* Each slave sends the results to master */
 	  cout << "Slave "<< rank << " is trying to send data to master" << endl;
-          MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG2, MPI_COMM_WORLD);	  	
+      MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG2, MPI_COMM_WORLD);	  	
   }
 
   cout << "Height " << height << " width " << width << " rank " << rank << endl;
