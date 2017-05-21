@@ -28,7 +28,7 @@ echo ""
 echo "=== Running 5 trials of Mandelbrot Master and save... ==="
 for trial in 1 2 3 4 5 ; do
   echo "*** Trial ${trial} ***"
-  mpirun -np 11 ./mandelbrot_ms 1000 1000
+  mpirun -np 13 ./mandelbrot_ms 1000 1000
 done
 
 echo ""

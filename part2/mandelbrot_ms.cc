@@ -134,13 +134,18 @@ int main(int argc, char* argv[])
         }
 
         /* Collect the final results. */
-
+				cout << "Master is starting to collect the final results." << endl;
         for (int i = 1; i < np; i++) {
         		MPI_Status status;
-            MPI_Recv(recvbuf, width + 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-            MPI_Send(0, 0, MPI_INT, status.MPI_SOURCE, MSG_TAG_COMPLETED, MPI_COMM_WORLD);
+            MPI_Recv(recvbuf, width + 1, MPI_DOUBLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            cout << "Collected the final results from " << status.MPI_SOURCE << endl;            
             // store the received result:
             memcpy(data + lround(recvbuf[width] * width), recvbuf, width * sizeof(double));
+            cout << "Master is sending done to the slave " << status.MPI_SOURCE << endl;
+            int sendbuf[2];
+            sendbuf[0] = 0;
+            sendbuf[1] = 0;
+            MPI_Send(&sendbuf, 2, MPI_INT, status.MPI_SOURCE, MSG_TAG_COMPLETED, MPI_COMM_WORLD);
         }
     }
 
@@ -151,13 +156,13 @@ int main(int argc, char* argv[])
             /* Each slave recieves its work */
             cout << "Slave " << rank << " is recieving." << endl;
             MPI_Status stat;
-            int rec_buf[2];            
+            int rec_buf[2];
             MPI_Recv(&rec_buf, 2, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
             lrow = rec_buf[0];
             lsize = rec_buf[1];
             cout << "Slave "<< rank <<" recieved the rows starting from " << lrow << " of size " << lsize << endl;
             if (lsize == 0) {
-                return 0;
+                break;
             }
             /* Slaves perform the work */
             int BUFFER_LENGTH = width * lsize + 1;
