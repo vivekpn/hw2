@@ -46,14 +46,7 @@ int main(int argc, char* argv[]) {
   const int MSG_TAG2 = 2;
   FILE *fp = NULL; /* output file, only valid on rank 0 */
 
-  int len = 0;
-
-  MPI_Init (&argc, &argv);	/* starts MPI */
-  MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
-  MPI_Comm_size (MPI_COMM_WORLD, &np);	/* Get number of processes */
-  MPI_Get_processor_name (hostname, &namelen); /* Get hostname of node */
-  printf ("Hello, world! [Host:%s -- Rank %d out of %d]\n", hostname, rank, np);
-  
+  int len = 0;  
   
   /* Initialization */
   double minX = -2.1;
@@ -74,12 +67,25 @@ int main(int argc, char* argv[]) {
 	  }
   }
   
-  int blocksize = 8;
-  height = (np-1)*blocksize;
-  width = (np-1)*blocksize;
+//  blocksize = 8;
+//  height = (np-1)*blocksize;
+//  width = (np-1)*blocksize;
   
   double it = (maxY - minY)/height;
   double jt = (maxX - minX)/width;
+
+
+  MPI_Init (&argc, &argv);	/* starts MPI */
+  MPI_Comm_rank (MPI_COMM_WORLD, &rank);	/* Get process id */
+  MPI_Comm_size (MPI_COMM_WORLD, &np);	/* Get number of processes */
+  MPI_Get_processor_name (hostname, &namelen); /* Get hostname of node */
+  printf ("Hello, world! [Host:%s -- Rank %d out of %d]\n", hostname, rank, np);
+
+  /* code requires the data and processors to match */
+  assert (height % (np-1) == 0);
+
+  int blocksize = height/(np-1);
+  
 
   /* Master divides the work */
   
@@ -122,7 +128,7 @@ int main(int argc, char* argv[]) {
 	  }
 	  /* Each slave sends the results to master */
 	  cout << "Slave "<< rank << " is sending data to master" << endl;
-	  printdata(ldata, BUFFER_LENGTH);
+//	  printdata(ldata, BUFFER_LENGTH);
       MPI_Send (ldata, BUFFER_LENGTH, MPI_DOUBLE, 0, MSG_TAG2, MPI_COMM_WORLD);
   }
 
@@ -152,22 +158,22 @@ int main(int argc, char* argv[]) {
  
   /* Once the work is completed, master renders the image and outputs the result */  
   if(rank == 0) {
-      cout << 149 << endl;
+//      cout << 149 << endl;
 	  gil::rgb8_image_t img(height, width);
-	  cout << 151 << endl;
+//	  cout << 151 << endl;
 
 	  auto img_view = gil::view(img);
-	  cout << 154 << endl;
+//	  cout << 154 << endl;
 
 	  for (int i = 0; i < height; ++i) {
-	  	cout << 157 << endl;
+//	  	cout << 157 << endl;
 		for (int j = 0; j < width; ++j) {
-	      cout << 159 << endl;
+//	      cout << 159 << endl;
 		  img_view(j, i) = render(data[j*width+i]);
-		  cout << 161 << endl;
+//		  cout << 161 << endl;
 		}
 	  }
-	  cout << 164 << endl;
+//	  cout << 164 << endl;
 	  gil::png_write_view("mandelbrot.png", const_view(img));  
   }
   cout << "Rank " << rank << " before finalize." << endl;  
