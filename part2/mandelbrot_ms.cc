@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
 	    int sendbuf = i-1;
 	    MPI_Isend (&sendbuf, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD, &requests[i-1]);
   	}
-  	MPI_Waitall(np-1, requests, statuses);
+//  MPI_Waitall(np-1, requests, statuses);
   } 
       
   /* Each slave recieves its work */
@@ -106,10 +106,9 @@ int main(int argc, char* argv[]) {
   if(rank != 0){
         cout << "Slave "<< rank << " is trying to recieve." << endl;
 		MPI_Status stat;
-		MPI_Recv (&lrow, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat); 
+		MPI_Recv (&lrow, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat);
        cout << "Slave recieved the value " << lrow << endl;
-  }
-  
+  }  
  
   cout << "Initial send is complete for process " << rank << endl; 
   /* Slaves perform the work */  
@@ -119,7 +118,7 @@ int main(int argc, char* argv[]) {
 	  double* ldata = new double[BUFFER_LENGTH];
 	  double x, y;
 	  y = minY + (rank-1) * blocksize * it;
-	  for (int i = lrow; i < blocksize; ++i) {
+	  for (int i = 0; i < blocksize; i++) {
 		x = minX;
 		for (int j = 0; j < width; ++j) {
 		  ldata[i*width+j] = mandelbrot(x, y)/512.0;
