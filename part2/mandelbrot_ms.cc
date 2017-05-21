@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
   char hostname[MPI_MAX_PROCESSOR_NAME+1];
   int namelen = 0;
   const int MSG_TAG = 1;
-
+  const int MSG_TAG2 = 2;
   FILE *fp = NULL; /* output file, only valid on rank 0 */
 
   int len = 0;
@@ -82,24 +82,26 @@ int main(int argc, char* argv[]) {
     cout << "Master is trying to send." << endl;
   	for(int i = 1; i< np; i++){
   	    cout << "Master is sending to " << i << endl;
-	    int value = i-1;
-	    MPI_Send (&value, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	  	
+	    int* sendbuf = (int *) malloc(sizeof(int));
+            sendbuf[0] = i-1;
+	    MPI_Send (sendbuf, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	  	
   	}
   } 
   
   /* Each slave recieves its work */
-  int* msgbuf = NULL;
+  int lrow = 0;
   if(rank != 0){
         cout << "Slave "<< rank << " is trying to recieve." << endl;
-		msgbuf = new int[1];
 		MPI_Status stat;
-		MPI_Recv (msgbuf, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat);  
+		MPI_Recv (&lrow, 1, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat); 
+       cout << "Slave recieved the value " << lrow << endl;
   }
-  int lrow = msgbuf[0];
-    
+   
+  cout << "Initial send is complete for process " << rank << endl; 
   /* Slaves perform the work */  
   int BUFFER_LENGTH = 1 * width;
-  if(rank != 0 ){	  
+  if(rank != 0 ){
+          cout << "Slave " << rank << " is starting the work";	  
 	  int* ldata = (int *) malloc(BUFFER_LENGTH * sizeof(int));
 	  double x, y;
 	  y = minY + (rank-1) * it;
@@ -112,17 +114,20 @@ int main(int argc, char* argv[]) {
 		y += it;
 	  }
 	  /* Each slave sends the results to master */
-	  MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD);	  	
+	  cout << "Slave "<< rank << " is trying to send data to master";
+          MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG2, MPI_COMM_WORLD);	  	
   }
 
   int** data = NULL;
   /* Master recieves slaves work*/   
   if(rank == 0) {
-    data = new int*[width];
+    data = new int*[height];
     // data = (int *) malloc( BUFFER_LENGTH * sizeof(int));
   	for(int i = 1; i< np; i++){
+                cout << "Master is trying to recieve data from slave " << i;
   		MPI_Status stat;
-		MPI_Recv (data[i], width, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD, &stat);  
+		data[i] = new int[width];
+		MPI_Recv (data[i], width, MPI_INT, i, MSG_TAG2, MPI_COMM_WORLD, &stat);  
   	}
   }
   
