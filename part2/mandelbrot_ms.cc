@@ -38,18 +38,14 @@ int mandelbrot(double x, double y)
     return it;
 }
 
-
 int main(int argc, char* argv[])
 {
     int rank = 0;
     int np = 0;
     char hostname[MPI_MAX_PROCESSOR_NAME + 1];
     int namelen = 0;
-    const int MSG_TAG = 1;
-    const int MSG_TAG2 = 2;
-    FILE* fp = NULL; /* output file, only valid on rank 0 */
-
-    int len = 0;
+    const int MSG_TAG_DATA = 1;
+    const int MSG_TAG_COMPLETED = 0;
 
     /* Initialization */
     double minX = -2.1;
@@ -71,10 +67,6 @@ int main(int argc, char* argv[])
         }
     }
 
-    //  blocksize = 8;
-    //  height = (np-1)*blocksize;
-    //  width = (np-1)*blocksize;
-
     double it = (maxY - minY) / height;
     double jt = (maxX - minX) / width;
 
@@ -85,7 +77,6 @@ int main(int argc, char* argv[])
     printf("Hello, world! [Host:%s -- Rank %d out of %d]\n", hostname, rank, np);
 
     /* code requires the data and processors to match */
-//    assert(height % (np - 1) == 0);
 
     int blocksize = height / (np - 1);
 
@@ -96,57 +87,50 @@ int main(int argc, char* argv[])
     int row = 0;
     map<int, int> prows;
     int INITIAL_NUMBERS = 1;
+    double* data = NULL;
+
     if (rank == 0) {
-        bool iscomplete = false;
         for (int i = 1; i < np; i++) {
             prows[i] = INITIAL_NUMBERS;
         }
-        while (true) {
-            /* Master sends work to all the slaves */
-            cout << "Master is alloting work to slaves." << endl;
-            int i = 1;
-            for (; i < np; i++) {
-                cout << "Master is sending to " << i << endl;
-                int sendbuf[2];
-                sendbuf[0] = row;
-                sendbuf[1] = prows[i];
-                if (row + prows[i] > height) {
-                    sendbuf[1] = height - row;
-                    iscomplete = true;
-                }
-                row = row + prows[i];
-                prows[i] = prows[i] * 2;
-                MPI_Isend(&sendbuf, 2, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD, &requests[i - 1]);
-                if (iscomplete) {
-                    break;
-                }
-            }
-
+        /* Master sends work to all the slaves */
+        cout << "Master is alloting work to slaves." << endl;
+        for (int i = 1; i < np; i++) {
+            cout << "Master is sending to " << i << endl;
+            int sendbuf[2];
+            sendbuf[0] = row;
+            sendbuf[1] = prows[i];
+            row = row + prows[i];
+            // prows[i] = prows[i] * 2;
+            MPI_Isend(&sendbuf, 2, MPI_INT, i, MSG_TAG_DATA, MPI_COMM_WORLD, &requests[i - 1]);
+        }
+        data = new double[height * width];
+        double recvbuf[width + 1];
+        while (row < height) {
             /* Master recieves slaves work*/
-            data = new double[height * width];
-            
-            for (int k = 1; k < i; k++) {
-                cout << "Master is recieving data from slave " << k << endl;
-                MPI_Irecv(data + (BUFFER_LENGTH * (k - 1)), BUFFER_LENGTH, MPI_DOUBLE, k, MSG_TAG2, MPI_COMM_WORLD, &requests[k - 1]);
-                cout << "Master recieved data from slave " << k << endl;
-            }
-            
-            int index;
-            MPI_Waitany(np-1, requests, &index, statuses);
-            
-            
-            
-            if (iscomplete) {
-                MPI_Waitall(np - 1, requests, statuses);
-                int sendbuf[2];
-                sendbuf[1] = 0;
-		        for (int i = 1; i < np; i++) {
-		            cout << "Master is recieving data from slave " << i << endl;
-		            MPI_Isend(&sendbuf, 2, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD, &requests[i - 1]);
-		            cout << "Master recieved data from slave " << i << endl;
-		        }            
-                break;
-            }
+            cout << "Master is waiting to recieve data from a slave " << endl;
+            MPI_Status status;            
+            MPI_Recv(recvbuf, width + 1, MPI_DOUBLE, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            int slave = status.MPI_SOURCE;
+            cout << "Master recieved data from slave " << slave << endl;
+            memcpy(data + lround(recvbuf[width] * width), recvbuf, width * prows[slave] * sizeof(double));
+
+            /* Master sends new work to all the slaves */
+            int sendbuf[2];
+            sendbuf[0] = row;
+            sendbuf[1] = prows[slave];
+            MPI_Send(&sendbuf, 2, MPI_INT, slave, MSG_TAG_DATA, MPI_COMM_WORLD);
+            row = row + prows[slave];
+        }
+
+        /* Collect the final results. */
+
+        for (int i = 1; i < np; i++) {
+        		MPI_Status status;
+            MPI_Recv(recvbuf, width + 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            MPI_Send(0, 0, MPI_INT, status.MPI_SOURCE, MSG_TAG_COMPLETED, MPI_COMM_WORLD);
+            // store the received result:
+            memcpy(data + lround(recvbuf[width] * width), recvbuf, width * sizeof(double));
         }
     }
 
@@ -155,41 +139,39 @@ int main(int argc, char* argv[])
     if (rank != 0) {
         while (true) {
             /* Each slave recieves its work */
-            cout << "Slave " << rank << " is trying to recieve." << endl;
+            cout << "Slave " << rank << " is recieving." << endl;
             MPI_Status stat;
-            int* rec_buf;
-            MPI_Recv(rec_buf, 2, MPI_INT, 0, MSG_TAG, MPI_COMM_WORLD, &stat);
+            int rec_buf[2];            
+            MPI_Recv(&rec_buf, 2, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &stat);
             lrow = rec_buf[0];
             lsize = rec_buf[1];
-            cout << "Slave recieved the value " << lrow << endl;
+            cout << "Slave "<< rank <<" recieved the rows starting from " << lrow << " of size " << lsize << endl;
             if (lsize == 0) {
-                break;
+                return 0;
             }
             /* Slaves perform the work */
-            int BUFFER_LENGTH = blocksize * width;
-            if (rank != 0) {
-                cout << "Slave " << rank << " is starting the work" << endl;
-                double* ldata = new double[BUFFER_LENGTH];
-                double x, y;
-                y = minY + (rank - 1) * lrow * it;
-                for (int i = lrow; i < lsize; i++) {
-                    x = minX;
-                    for (int j = 0; j < width; ++j) {
-                        ldata[i * width + j] = mandelbrot(x, y) / 512.0;
-                        x += jt;
-                    }
-                    y += it;
+            int BUFFER_LENGTH = width * lsize + 1;
+            cout << "Slave " << rank << " is starting the work" << endl;
+            double* ldata = new double[BUFFER_LENGTH];
+            double x, y;
+            y = minY + lrow * it;
+            for (int i = 0; i < lsize; i++) {
+                x = minX;
+                for (int j = 0; j < width; ++j) {
+                    ldata[i * width + j] = mandelbrot(x, y) / 512.0;
+                    x += jt;
                 }
-                /* Each slave sends the results to the master */
-                cout << "Slave " << rank << " is sending data to master" << endl;
-                MPI_Send(ldata, BUFFER_LENGTH, MPI_DOUBLE, 0, MSG_TAG2, MPI_COMM_WORLD);
+                y += it;
             }
+            /* Each slave sends the results to the master */
+            ldata[BUFFER_LENGTH - 1] = lrow;
+            cout << "Slave " << rank << " is sending data to master" << endl;
+            MPI_Send(ldata, BUFFER_LENGTH, MPI_DOUBLE, 0, MSG_TAG_DATA, MPI_COMM_WORLD);
         }
     }
 
     cout << "Initial send is complete for process " << rank << endl;
     cout << "Height " << height << " width " << width << " rank " << rank << endl;
-    double* data = NULL;
 
     /* Once the work is completed, master renders the image and outputs the result */
     if (rank == 0) {
