@@ -10,6 +10,15 @@
 #include <mpi.h>
 
 using namespace std;
+void printdata(double* data, int len);
+int mandelbrot(double x, double y);
+
+void printdata(double* data, int len){
+	for(int i=0; i< len; i++){
+		cout<< data[i] << " ";
+	}
+	cout<< endl;
+}
 
 int mandelbrot(double x, double y) {
   int maxit = 511;
@@ -64,9 +73,10 @@ int main(int argc, char* argv[]) {
 		return -1;
 	  }
   }
-    
-  height = 15;
-  width = 15;
+  
+  int blocksize = 8;
+  height = (np-1)*blocksize;
+  width = (np-1)*blocksize;
   
   double it = (maxY - minY)/height;
   double jt = (maxX - minX)/width;
@@ -80,8 +90,8 @@ int main(int argc, char* argv[]) {
   	for(int i = 1; i< np; i++){
   	    cout << "Master is sending to " << i << endl;
 	    int* sendbuf = (int *) malloc(sizeof(int));
-            sendbuf[0] = i-1;
-	    MPI_Send (sendbuf, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	  	
+        sendbuf[0] = i-1;
+	    MPI_Send (sendbuf, 1, MPI_INT, i, MSG_TAG, MPI_COMM_WORLD);	
   	}
   } 
   
@@ -96,13 +106,13 @@ int main(int argc, char* argv[]) {
    
   cout << "Initial send is complete for process " << rank << endl; 
   /* Slaves perform the work */  
-  int BUFFER_LENGTH = 1 * width;
+  int BUFFER_LENGTH = blocksize * width;
   if(rank != 0 ){
           cout << "Slave " << rank << " is starting the work" << endl;	  
-	  int* ldata = (int *) malloc(BUFFER_LENGTH * sizeof(int));
+	  double* ldata = (double *) malloc(BUFFER_LENGTH * sizeof(double));
 	  double x, y;
-	  y = minY + (rank-1) * it;
-	  for (int i = lrow; i < 1; ++i) {
+	  y = minY + (rank-1) * blocksize * it;
+	  for (int i = lrow; i < blocksize; ++i) {
 		x = minX;
 		for (int j = 0; j < width; ++j) {
 		  ldata[i*width+j] = mandelbrot(x, y)/512.0;
@@ -111,26 +121,25 @@ int main(int argc, char* argv[]) {
 		y += it;
 	  }
 	  /* Each slave sends the results to master */
-	  cout << "Slave "<< rank << " is trying to send data to master" << endl;
-      MPI_Send (ldata, width, MPI_INT, 0, MSG_TAG2, MPI_COMM_WORLD);	  	
+	  cout << "Slave "<< rank << " is sending data to master" << endl;
+	  printdata(ldata, BUFFER_LENGTH);
+      MPI_Send (ldata, BUFFER_LENGTH, MPI_DOUBLE, 0, MSG_TAG2, MPI_COMM_WORLD);
   }
 
   cout << "Height " << height << " width " << width << " rank " << rank << endl;
-  int** data = NULL;
+  double* data = NULL;
   /* Master recieves slaves work*/   
 
   if(rank == 0) {
     cout << 126 << endl; 
-    data = new int*[height];
+    data = new double[height*width];
     cout << 128 << endl; 
 
     // data = (int *) malloc( BUFFER_LENGTH * sizeof(int));
   	for(int i = 1; i< np; i++){
-  	    cout << 132 << endl; 
-		data[i-1] = new int[width];
-        cout << "Master is trying to recieve data from slave " << i << endl;
+        cout << "Master is recieving data from slave " << i << endl;
   		MPI_Status stat;
-		MPI_Recv (data[i-1], width, MPI_INT, i, MSG_TAG2, MPI_COMM_WORLD, &stat);  
+		MPI_Recv (data + (BUFFER_LENGTH * (i-1)), BUFFER_LENGTH, MPI_DOUBLE, i, MSG_TAG2, MPI_COMM_WORLD, &stat);  
 		cout << "Master recieved data from slave " << i << endl;
 		cout << "Data from slave " << i << " is " << data[i-1] << endl;
   	}
@@ -154,7 +163,7 @@ int main(int argc, char* argv[]) {
 	  	cout << 157 << endl;
 		for (int j = 0; j < width; ++j) {
 	      cout << 159 << endl;
-		  img_view(j, i) = render(data[j][i]);
+		  img_view(j, i) = render(data[j*width+i]);
 		  cout << 161 << endl;
 		}
 	  }
