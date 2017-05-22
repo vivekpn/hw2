@@ -8,6 +8,8 @@
 #include <cstdlib>
 
 #include "render.hh"
+#include "timer.c"
+
 
 using namespace std;
 
@@ -48,6 +50,10 @@ main(int argc, char* argv[]) {
     fprintf (stderr, "where <height> and <width> are the dimensions of the image.\n");
     return -1;
   }
+       struct stopwatch_t* timer;
+       stopwatch_init ();
+			timer = stopwatch_create ();
+			stopwatch_start (timer);
 
   double it = (maxY - minY)/height;
   double jt = (maxX - minX)/width;
@@ -61,12 +67,21 @@ main(int argc, char* argv[]) {
   for (int i = 0; i < height; ++i) {
     x = minX;
     for (int j = 0; j < width; ++j) {
-      img_view(j, i) = render(mandelbrot(x, y)/512.0);
+      float m = mandelbrot(x, y)/512.0;
+      //printf(" %f",m);
+      img_view(j, i) = render(m);
       x += jt;
     }
+      //printf("\n");
     y += it;
   }
   gil::png_write_view("mandelbrot.png", const_view(img));
+  long double t_qs = stopwatch_stop (timer);
+   printf ("Mandelbrot total execution time: %Lg seconds", t_qs);
+   stopwatch_destroy (timer);  
+
+
+
 }
 
 /* eof */
