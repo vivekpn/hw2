@@ -28,7 +28,20 @@ echo ""
 echo "=== Running 5 trials of Mandelbrot Master and save... ==="
 #for trial in 1 2 3 4 5 ; do
 echo "*** np =1 ***"
-mpirun -np 1 ./mandelbrot_serial 4096 4096
+mpirun -np 1 ./mandelbrot_joe 4096 4096
+echo "*** np =2 ***"
+mpirun -np 2 ./mandelbrot_joe 4096 4096
+echo "*** np =4 ***"
+mpirun -np 4 ./mandelbrot_joe 4096 4096
+echo "*** np =8 ***"
+mpirun -np 8 ./mandelbrot_joe 4096 4096
+echo "*** np =16 ***"
+mpirun -np 16 ./mandelbrot_joe 4096 4096
+echo "*** np =32 ***"
+mpirun -np 32 ./mandelbrot_joe 4096 4096
+echo "*** np =64 ***"
+mpirun -np 64 ./mandelbrot_joe 4096 4096
+
 
 #done
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -N Mandelbrot
-#$ -q class8-intel
-#$ -pe one-node-mpi 1
+#$ -q pub8i
+#$ -pe mpi 64
 #$ -R y
 
 # Grid Engine Notes:
@@ -16,5 +16,9 @@ module load boost/1.57.0
 # Module load OpenMPI
 module load openmpi-1.8.3/gcc-4.9.2
 
+ompi_info --param mpi all
+
 # Run the program 
-mpirun -np 1  ./mandelbrot_serial 1000 1000
+mpirun -np 8 ./mandelbrot_susie 900 900 
+
+
